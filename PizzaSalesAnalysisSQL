@@ -1,0 +1,98 @@
+-- Goal for the SQL Analysis
+/*   
+1. # of customers per day & Peak hours (Small insights)
+2. # of pizzas in an order & best selling pizzas (Small insights)
+3. Total Revenue & Seasonanilty in sales (Do it by quarters) (Big insight)
+4. Pizzas to take off menu or promotions to levarage <-- insights/directives
+*/
+
+-- 1. Queries for # of customers per day & Peak hours
+
+-- # of customer per day for the whole year
+Select count(order_id) as Total_number_of_Customers, cast(date as date) as Date
+From orders 
+Group by date
+Order by Date
+
+-- Show peak hours (using DATEPART to show the Hour)
+Select count(order_id) as Total_number_of_Customers, DATEPART(HOUR, time) AS time_of_day 
+FROM orders 
+Group By time
+Order By Total_number_of_Customers Desc, Time
+
+-- Date of max number of customers
+Select count(order_id) as Total_number_of_Customers, cast(date as date) as Date
+From orders 
+Group by date
+Order by Total_number_of_Customers Desc
+OFFSET 0 ROWS FETCH FIRST 1 ROWS ONLY;
+
+-- 2. # of pizzas in an order & best selling pizzas (Small insights)
+-- Join the order_details with pizzas with pizza types.. 
+-- or create a new subtable with pizzatypes so pizza name is with pizzas table
+
+-- Query for # of pizzas in an order (Quanitty group by order ID)
+SELECT order_id, count(quantity) as Number_of_pizzas 
+FROM order_details
+Group by order_id
+Order BY Number_of_pizzas Desc;
+
+-- Challenge query number of order by number of pizzas (Sub Query solution)
+Select count(order_id)as Count_of_orders, Number_of_pizzas 
+	From 
+		(
+			SELECT order_id, count(quantity) as Number_of_pizzas
+			FROM order_details
+			Group by order_id ) order_details
+	Group by Number_of_pizzas
+	Order By Count_of_orders DESC;
+
+
+-- Query for best selling pizza (this is showing per ordered quantity.. maybe not accurate query on best selling pizza)
+Select Distinct(pizzas.pizza_id), order_details.quantity, pizza_types.name
+FROM order_details
+JOIN pizzas
+on  order_details.pizza_id = pizzas.pizza_id
+JOIN pizza_types
+on pizzas.pizza_type_id = pizza_types.pizza_type_id
+Group by pizzas.pizza_id, order_details.quantity, pizza_types.name
+Order by quantity DESC;
+
+--2nd query on best sellig pizza (Sum of the quantity by grouped by pizza_Id <- more accurate)
+Select sum(cast(order_details.quantity as int)) as total_number_of_times_ordered, order_details.pizza_id, pizza_types.name
+FROM order_details
+JOIN pizzas
+on  order_details.pizza_id = pizzas.pizza_id
+JOIN pizza_types
+on pizzas.pizza_type_id = pizza_types.pizza_type_id
+Group by order_details.pizza_id, pizza_types.name
+Order By total_number_of_times_ordered DESC
+
+
+-- 3. Total Revenue & Seasonanilty in sales (Do it by quarters) (Big insight)
+-- (Quantity of products sold * the cost of sale) sum total sales
+
+
+-- This Query groups the total cost by the pizza id so we see how much of each pizza was sold
+Select 
+Sum(od.quantity * p.price) as Revenue,
+p.pizza_id, pizza_types.name
+From order_details od
+Join pizzas p on od.pizza_id = p.pizza_id
+join pizza_types on p.pizza_type_id = pizza_types.pizza_type_id
+Group by p.pizza_id, pizza_types.name
+
+-- Quick query to show total revenue
+SELECT SUM(od.quantity * p.price) AS total_revenue
+FROM Order_details od
+JOIN pizzas p ON od.pizza_id = p.pizza_id
+
+-- By Quarter
+select o.date , Sum(od.quantity * p.price) as Revenue
+from orders o
+Join order_details od
+on od.order_id = o.order_id
+Join pizzas p 
+on od.pizza_id = p.pizza_id
+group by o.date
+Order by o.date
